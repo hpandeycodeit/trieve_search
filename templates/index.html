@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Webflow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+        }
+        .header {
+            width: 100%;
+            background-color: #000000;
+            border-bottom: 1px solid #444;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header .logo img {
+            height: 40px;
+        }
+        .header nav {
+            display: flex;
+            align-items: center;
+        }
+        .header nav a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #ffffff;
+            font-size: 16px;
+        }
+        .header nav a:hover {
+            text-decoration: underline;
+        }
+        .search-container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        #query {
+            width: 60%;
+            padding: 15px;
+            font-size: 1.2em;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #search-type {
+            padding: 15px;
+            font-size: 1em;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 15px;
+            font-size: 1em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            width: 100%;
+        }
+        .result-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .result-item a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .result-item a:hover {
+            background-color: #f0f0f0;
+        }
+        .result-heading {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        #loading {
+            display: none;
+            font-size: 1.2em;
+            color: #555;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <a href="#"><img src="https://dhygzobemt712.cloudfront.net/Web/developers/Webflow-Developers.svg" alt="Webflow Logo"></a>
+        </div>
+        <nav>
+            <a href="/docs">Guides</a>
+            <a href="/designer/reference">Designer API</a>
+            <a href="/data/reference">Data API</a>
+            <a href="/data/docs/developer-tools">Developer Tools</a>
+            <a href="http://webflow.com/marketplace" target="_blank">Marketplace</a>
+        </nav>
+    </header>
+    <div class="search-container">
+        <h1>Search Webflow</h1>
+            <p>Enter Your Search Query: for eg:- Designer APIs</p>
+                <form id="search-form">
+            <input type="text" id="query" placeholder="Enter search term" required>
+            <button type="submit">Search</button>
+        </form>
+    </div>
+    </div>
+    <div id="loading">Loading...</div>
+    <div id="results"></div>
+
+    <script>
+        const form = document.getElementById('search-form');
+        const queryInput = document.getElementById('query');
+        const resultsDiv = document.getElementById('results');
+        const loadingIndicator = document.getElementById('loading');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const query = queryInput.value;
+            loadingIndicator.style.display = 'block';
+
+            fetchResults(query);
+        });
+
+        function fetchResults(query) {
+            fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query })
+            })
+            .then(response => response.json())
+            .then(data => {
+                renderResults(data.score_chunks);
+                loadingIndicator.style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultsDiv.textContent = `Error: ${error}`;
+                loadingIndicator.style.display = 'none';
+            });
+        }
+
+        function renderResults(chunks) {
+            resultsDiv.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+
+            chunks.forEach(chunk => {
+                chunk.metadata.forEach(meta => {
+                    const resultItem = document.createElement('div');
+                    resultItem.classList.add('result-item');
+
+                    const resultLink = document.createElement('a');
+                    resultLink.href = meta.link;
+                    resultLink.target = '_blank';
+
+                    const resultHeading = document.createElement('div');
+                    resultHeading.classList.add('result-heading');
+                    resultHeading.textContent = meta.main_heading;
+
+                    const resultContent = document.createElement('div');
+                    resultContent.innerHTML = meta.chunk_html;
+
+                    resultLink.appendChild(resultHeading);
+                    resultLink.appendChild(resultContent);
+                    resultItem.appendChild(resultLink);
+                    fragment.appendChild(resultItem);
+                });
+            });
+
+            resultsDiv.appendChild(fragment);
+        }
+    </script>
+</body>
+</html>
