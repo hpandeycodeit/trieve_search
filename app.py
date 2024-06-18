@@ -2,13 +2,18 @@ from flask import Flask, request, jsonify, render_template
 import requests
 import os
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
 # Replace these with your actual API key and dataset ID
-API_URL = 'https://api.trieve.ai/api/chunk/search'
 API_KEY = os.getenv('API_KEY')
 TR_DATASET = os.getenv('TR_DATASET_ID')
+API_URL_CHUNK_SEARCH = 'https://api.trieve.ai/api/chunk/search'
+API_URL_GROUP_SEARCH = 'https://api.trieve.ai/api/chunk_group/group_oriented_search'
 
 @app.route('/')
 def index():
@@ -29,7 +34,17 @@ def get_main_heading(url):
 def search_chunks():
     data = request.json
     query = data.get('query')
-    search_type = data.get('search_type', 'text')  # Default to 'text' if not provided
+    search_in_gp = data.get('searchInGroups')
+
+    page = data.get('page', 1)
+    per_page = data.get('per_page', 10)
+
+    #print(" --- --- search_in_gp -- ", search_in_gp)
+    if search_in_gp:
+        API_URL = API_URL_GROUP_SEARCH
+    else:
+        API_URL = API_URL_CHUNK_SEARCH
+    #search_type = data.get('search_type', 'text')  # Default to 'text' if not provided
     
     headers = {
         "Content-Type": "application/json",
@@ -39,21 +54,38 @@ def search_chunks():
     
     payload = {
         "query": query,
-        "page": 1,
-        "per_page": 10,
+        "page": page,
+        "per_page": per_page,
         "search_type": "hybrid"
     }
     
-    response = requests.post(API_URL, headers=headers, json=payload)
-    if response.status_code == 200:
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
         results = response.json()
-        for chunk in results.get('score_chunks', []):
-            #print(" chunk is --" , chunk)
-            for meta in chunk.get('metadata', []):
-                meta['main_heading'] = get_main_heading(meta['link'])
+
+        if search_in_gp:
+            # Process group search results
+            for group in results.get('group_chunks', []):
+                #print("group is -- ", group)
+                group['group_name'] = group.get('group_name')
+        else:
+            # Process chunk search results
+            for chunk in results.get('score_chunks', []):
+                for meta in chunk.get('metadata', []):
+                    meta['main_heading'] = get_main_heading(meta['link'])
+
+        print("results -- ", results)
         return jsonify(results)
-    else:
-        return jsonify({"error": response.text}), response.status_code
+
+    except requests.exceptions.HTTPError as err:
+        error_message = f"HTTP error occurred: {err}"
+        print(error_message)
+        return jsonify({'error': error_message}), 500
+    except Exception as e:
+        error_message = f"Error occurred: {str(e)}"
+        print(error_message)
+        return jsonify({'error': error_message}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -77,8 +77,20 @@
         #results {
             margin-top: 20px;
             width: 100%;
+            margin: 0 20px;
+        }
+        h2 {
+            margin-left: 20px;  
+            margin-right: 20px;
         }
         .result-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            
+        }
+        .group-container {
+            margin-top: 10px;
             border: 1px solid #ddd;
             padding: 10px;
             margin-bottom: 10px;
@@ -90,18 +102,58 @@
             width: 100%;
             height: 100%;
         }
-        .result-item a:hover {
+        .result-item:hover {
             background-color: #f0f0f0;
         }
         .result-heading {
             font-weight: bold;
             font-size: 1.2em;
         }
+        .result-content {
+            margin-top: 5px;
+        }
         #loading {
             display: none;
-            font-size: 1.2em;
-            color: #555;
+            font-size: 1.5em;
+            color: #007BFF;
+            font-weight: bold;
             text-align: center;
+        }
+         #pagination {
+            margin: 20px 0;
+            display: none; /* Hide pagination initially */
+            justify-content: center;
+            align-items: center;
+        }
+        #pagination button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 1em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #pagination button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #pagination button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        #page-info {
+            margin: 0 10px;
+            font-size: 1em;
+        }
+        .search-options {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .search-options label {
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -120,41 +172,77 @@
     </header>
     <div class="search-container">
         <h1>Search Webflow</h1>
-            <p>Enter Your Search Query: for eg:- Designer APIs</p>
-                <form id="search-form">
+        <p>Enter Your Search Query: for eg:- Designer APIs</p>
+        <form id="search-form">
             <input type="text" id="query" placeholder="Enter search term" required>
             <button type="submit">Search</button>
         </form>
+        <div class="search-options">
+            <input type="checkbox" id="search-in-groups">
+            <label for="search-in-groups">Search in Groups</label>
+        </div>
     </div>
+    <div id="pagination">
+        <button id="prev-page" disabled>Previous</button>
+        <span id="page-info">Page 1</span>
+        <button id="next-page">Next</button>
     </div>
     <div id="loading">Loading...</div>
     <div id="results"></div>
+
+
 
     <script>
         const form = document.getElementById('search-form');
         const queryInput = document.getElementById('query');
         const resultsDiv = document.getElementById('results');
         const loadingIndicator = document.getElementById('loading');
+        const searchInGroupsCheckbox = document.getElementById('search-in-groups');
 
+        // Pagination 
+        let page = 1;
+        const perPage = 10;
+        const paginationDiv = document.getElementById('pagination');
+        const prevPageButton = document.getElementById('prev-page');
+        const nextPageButton = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+        //
+        prevPageButton.addEventListener('click', () => {
+            if (page > 1) {
+                loadingIndicator.style.display = 'block';
+                page--;
+                const searchInGroups = searchInGroupsCheckbox.checked;
+                fetchResults(queryInput.value, searchInGroups);
+            }
+        });
+        nextPageButton.addEventListener('click', () => {
+            loadingIndicator.style.display = 'block';
+            page++;
+            const searchInGroups = searchInGroupsCheckbox.checked;
+            fetchResults(queryInput.value, searchInGroups);
+        });
         form.addEventListener('submit', (event) => {
             event.preventDefault();
+            page = 1; 
             const query = queryInput.value;
+            const searchInGroups = searchInGroupsCheckbox.checked;
+
             loadingIndicator.style.display = 'block';
 
-            fetchResults(query);
+            fetchResults(query, searchInGroups);
         });
 
-        function fetchResults(query) {
+        function fetchResults(query, searchInGroups) {
             fetch('/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query, searchInGroups, page, perPage })
             })
             .then(response => response.json())
             .then(data => {
-                renderResults(data.score_chunks);
+                renderResults(data);
                 loadingIndicator.style.display = 'none';
             })
             .catch(error => {
@@ -164,34 +252,83 @@
             });
         }
 
-        function renderResults(chunks) {
+        function renderResults(data) {
             resultsDiv.innerHTML = '';
-            const fragment = document.createDocumentFragment();
 
-            chunks.forEach(chunk => {
-                chunk.metadata.forEach(meta => {
-                    const resultItem = document.createElement('div');
-                    resultItem.classList.add('result-item');
+            if (data.error) {
+                resultsDiv.textContent = `Error: ${data.error}`;
+                return;
+            }
 
-                    const resultLink = document.createElement('a');
-                    resultLink.href = meta.link;
-                    resultLink.target = '_blank';
+            resultsDiv.innerHTML = '';
 
-                    const resultHeading = document.createElement('div');
-                    resultHeading.classList.add('result-heading');
-                    resultHeading.textContent = meta.main_heading;
+            if (data.group_chunks) {
+                // Group search results
+                data.group_chunks.forEach(group => {
+                    const groupHeading = document.createElement('h2');
+                    groupHeading.textContent = group.group_name;
+                    resultsDiv.appendChild(groupHeading);
 
-                    const resultContent = document.createElement('div');
-                    resultContent.innerHTML = meta.chunk_html;
+                    const groupContainer = document.createElement('div');
+                    groupContainer.classList.add('group-container');
 
-                    resultLink.appendChild(resultHeading);
-                    resultLink.appendChild(resultContent);
-                    resultItem.appendChild(resultLink);
-                    fragment.appendChild(resultItem);
+                    group.metadata.forEach(meta_entry => {
+                        const meta = meta_entry.metadata[0]; 
+                        const resultItem = document.createElement('div');
+                        resultItem.classList.add('result-item');
+
+                        const resultLink = document.createElement('a');
+                        resultLink.href = meta.link || '#'; 
+                        resultLink.target = '_blank'; 
+
+                        const resultHeading = document.createElement('div');
+                        resultHeading.classList.add('result-heading');
+                        resultHeading.textContent = ''; 
+                        const resultContent = document.createElement('div');
+                        resultContent.innerHTML = meta.chunk_html || '';
+
+                        resultLink.appendChild(resultHeading);
+                        resultLink.appendChild(resultContent);
+                        resultItem.appendChild(resultLink);
+                        groupContainer.appendChild(resultItem);
+                    });
+
+                    resultsDiv.appendChild(groupContainer);
                 });
-            });
+            } else if (data.score_chunks) {
+                const fragment = document.createDocumentFragment();
+                data.score_chunks.forEach(chunk => {
+                    chunk.metadata.forEach(meta => {
+                        const resultItem = document.createElement('div');
+                        resultItem.classList.add('result-item');
 
-            resultsDiv.appendChild(fragment);
+                        const resultLink = document.createElement('a');
+                        resultLink.href = meta.link || '#';
+                        resultLink.target = '_blank';
+
+                        const resultHeading = document.createElement('div');
+                        resultHeading.classList.add('result-heading');
+                        resultHeading.textContent = meta.main_heading || 'No heading';
+
+                        const resultContent = document.createElement('div');
+                        resultContent.innerHTML = meta.chunk_html || 'No content';
+
+                        resultLink.appendChild(resultHeading);
+                        resultLink.appendChild(resultContent);
+                        resultItem.appendChild(resultLink);
+                        fragment.appendChild(resultItem);
+                    });
+                });
+
+                resultsDiv.appendChild(fragment);
+            }
+            // Update pagination controls
+                paginationDiv.style.display = 'flex';
+                pageInfo.textContent = `Page ${page}`;
+                prevPageButton.disabled = (page === 1);
+                nextPageButton.disabled = (!data.group_chunks && !data.score_chunks) || 
+                             (data.group_chunks && data.group_chunks.length < perPage) || 
+                             (data.score_chunks && data.score_chunks.length < perPage);
         }
     </script>
 </body>
