@@ -1,7 +1,11 @@
+import os
+import json
 import requests
 from bs4 import BeautifulSoup
-import json
-import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 headers = {}
 
@@ -145,7 +149,6 @@ if __name__ == '__main__':
 
     # Webflow Docs URL
     url = 'https://developers.webflow.com/data/docs/getting-started-apps'
-
 
     set_headers()
 
