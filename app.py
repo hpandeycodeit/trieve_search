@@ -63,19 +63,23 @@ def search_chunks():
         response = requests.post(API_URL, headers=headers, json=payload)
         response.raise_for_status()
         results = response.json()
+        #print("results -- ", results)
 
         if search_in_gp:
             # Process group search results
             for group in results.get('group_chunks', []):
                 #print("group is -- ", group)
                 group['group_name'] = group.get('group_name')
-        else:
-            # Process chunk search results
-            for chunk in results.get('score_chunks', []):
-                for meta in chunk.get('metadata', []):
-                    meta['main_heading'] = get_main_heading(meta['link'])
+        
+        # ################### THIS IS CAUSING THE DELAY IN RENDERING THE RESULTS ###################
+        # ################### COMMENTING IT OUT ###################
+        #else:
+        #    # Process chunk search results
+        #    for chunk in results.get('score_chunks', []):
+        #        link = chunk.get('metadata')[0]['link']
+        #        print("chunk is  -- ", link)
+        #        chunk.get('metadata')[0]['main_heading'] = get_main_heading(link)
 
-        print("results -- ", results)
         return jsonify(results)
 
     except requests.exceptions.HTTPError as err:

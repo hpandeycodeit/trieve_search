@@ -306,14 +306,14 @@
                         resultLink.href = meta.link || '#';
                         resultLink.target = '_blank';
 
-                        const resultHeading = document.createElement('div');
-                        resultHeading.classList.add('result-heading');
-                        resultHeading.textContent = meta.main_heading || 'No heading';
+                        //const resultHeading = document.createElement('div');
+                        //resultHeading.classList.add('result-heading');
+                        //resultHeading.textContent = meta.main_heading || 'No //heading';
 
                         const resultContent = document.createElement('div');
                         resultContent.innerHTML = meta.chunk_html || 'No content';
 
-                        resultLink.appendChild(resultHeading);
+                        //resultLink.appendChild(resultHeading);
                         resultLink.appendChild(resultContent);
                         resultItem.appendChild(resultLink);
                         fragment.appendChild(resultItem);
